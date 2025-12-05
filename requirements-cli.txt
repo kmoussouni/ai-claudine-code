@@ -1,0 +1,13 @@
+# Dépendances Python pour les Agents CLI Claudine
+
+# Requis pour tous les agents CLI
+httpx>=0.25.0
+
+# Requis uniquement pour l'Agent TUI (Option 3)
+textual>=0.40.0
+
+# Optionnel: pour améliorer l'affichage
+rich>=13.0.0
+
+# Optionnel: pour la coloration syntaxique
+pygments>=2.16.0

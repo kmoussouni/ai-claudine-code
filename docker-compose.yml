@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Serveur Ollama - Modèle AI local
+  ollama:
+    image: ollama/ollama:latest
+    container_name: claudine-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    # Décommentez pour GPU NVIDIA
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Agent de code - Interface web avec Continue/Open WebUI
+  code-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: claudine-agent
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./workspace:/workspace
+      - agent_config:/app/config
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DEFAULT_MODEL=qwen2.5-coder:7b
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  # Interface Web UI (optionnel mais recommandé)
+  webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: claudine-webui
+    ports:
+      - "8080:8080"
+    volumes:
+      - webui_data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=changeme_secret_key_here
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  agent_config:
+  webui_data:

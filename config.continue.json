@@ -1,0 +1,59 @@
+{
+  "models": [
+    {
+      "title": "Claudine - Qwen Coder 7B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Claudine - Qwen Coder 32B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:32b",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Claudine - DeepSeek Coder",
+      "provider": "ollama",
+      "model": "deepseek-coder-v2:16b",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Claudine - CodeLlama",
+      "provider": "ollama",
+      "model": "codellama:7b",
+      "apiBase": "http://localhost:11434"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Qwen Coder 7B",
+    "provider": "ollama",
+    "model": "qwen2.5-coder:7b",
+    "apiBase": "http://localhost:11434"
+  },
+  "embeddingsProvider": {
+    "provider": "ollama",
+    "model": "nomic-embed-text",
+    "apiBase": "http://localhost:11434"
+  },
+  "customCommands": [
+    {
+      "name": "test",
+      "prompt": "Écris des tests unitaires pour le code sélectionné"
+    },
+    {
+      "name": "optimize",
+      "prompt": "Optimise le code sélectionné pour les performances"
+    },
+    {
+      "name": "explain",
+      "prompt": "Explique en détail le code sélectionné"
+    },
+    {
+      "name": "comment",
+      "prompt": "Ajoute des commentaires détaillés au code sélectionné"
+    }
+  ],
+  "allowAnonymousTelemetry": false,
+  "docs": []
+}
