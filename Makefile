@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart logs status models pull clean
+.PHONY: help setup start stop restart logs status models pull clean client-install remote-connect remote-disconnect remote-status
 
 help: ## Afficher cette aide
 	@echo "Claudine - Agent de Code Local"
@@ -54,3 +54,16 @@ dev-logs-webui: ## Logs uniquement WebUI
 
 build: ## Rebuilder les images Docker
 	@docker-compose build --no-cache
+
+# Commandes Client/Serveur
+client-install: ## Installer le client léger (sans Docker)
+	@./scripts/install-client.sh
+
+remote-connect: ## Se connecter au serveur distant (usage: make remote-connect HOST=monserveur.com)
+	@./scripts/connect-remote.sh start --host $(HOST)
+
+remote-disconnect: ## Déconnecter du serveur distant
+	@./scripts/connect-remote.sh stop
+
+remote-status: ## Status de la connexion distante
+	@./scripts/connect-remote.sh status
