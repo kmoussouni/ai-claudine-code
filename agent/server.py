@@ -13,6 +13,9 @@ from pydantic import BaseModel
 from typing import Optional, List
 import httpx
 
+# Import services
+from services.image_generator import ImageGenerator
+
 app = FastAPI(
     title="Claudine Code Agent API",
     description="API pour agent de code avec modèles AI locaux",
@@ -32,8 +35,13 @@ app.add_middleware(
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen2.5-coder:7b")
 WORKSPACE_DIR = "/workspace"
+SD_ENABLED = os.getenv("SD_ENABLED", "true").lower() == "true"
+SD_API_URL = os.getenv("SD_API_URL", "http://stable-diffusion:7860")
 
-# Modèles de données
+# Initialiser le service de génération d'images
+image_gen = ImageGenerator(sd_url=SD_API_URL) if SD_ENABLED else None
+
+# Modèles de données - Code
 class ChatRequest(BaseModel):
     message: str
     files: Optional[List[str]] = []
@@ -47,6 +55,44 @@ class ModelInfo(BaseModel):
     name: str
     size: Optional[str] = None
     available: bool
+
+# Modèles de données - Images
+class ImageGenerationRequest(BaseModel):
+    prompt: str
+    negative_prompt: Optional[str] = None
+    width: int = 512
+    height: int = 512
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
+    seed: int = -1
+    sampler_name: str = "DPM++ 2M Karras"
+    save_to_disk: bool = True
+
+class SpritesheetRequest(BaseModel):
+    prompt: str
+    frames: int = 4
+    frame_width: int = 64
+    frame_height: int = 64
+    negative_prompt: Optional[str] = None
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
+    seed: int = -1
+
+class GameAssetRequest(BaseModel):
+    asset_type: str  # icon, item, background, character, tileset
+    description: str
+    size: int = 512
+    negative_prompt: Optional[str] = None
+    steps: Optional[int] = None
+    cfg_scale: Optional[float] = None
+
+class ImageResponse(BaseModel):
+    status: str
+    image_path: Optional[str] = None
+    image_base64: Optional[str] = None
+    seed: int
+    prompt: str
+    info: Optional[dict] = None
 
 @app.get("/")
 async def root():
@@ -169,6 +215,170 @@ async def list_workspace_files():
         return {"files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# Endpoints de génération d'images (Stable Diffusion)
+# ============================================================================
+
+@app.get("/sd/health")
+async def sd_health():
+    """Vérifie l'état de santé du service Stable Diffusion"""
+    if not SD_ENABLED or not image_gen:
+        return {"status": "disabled", "message": "Stable Diffusion n'est pas activé"}
+
+    is_healthy = await image_gen.check_health()
+    return {
+        "status": "healthy" if is_healthy else "unhealthy",
+        "url": SD_API_URL,
+        "enabled": SD_ENABLED
+    }
+
+@app.get("/sd/models")
+async def sd_models():
+    """Liste les modèles Stable Diffusion disponibles"""
+    if not SD_ENABLED or not image_gen:
+        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+
+    try:
+        models = await image_gen.list_models()
+        return {"models": models}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-image", response_model=ImageResponse)
+async def generate_image(request: ImageGenerationRequest):
+    """
+    Génère une image via Stable Diffusion
+
+    Exemple:
+    ```
+    {
+        "prompt": "pixel art character, knight with blue armor",
+        "negative_prompt": "blurry, bad quality",
+        "width": 512,
+        "height": 512,
+        "steps": 20,
+        "cfg_scale": 7.0
+    }
+    ```
+    """
+    if not SD_ENABLED or not image_gen:
+        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+
+    try:
+        result = await image_gen.generate_image(
+            prompt=request.prompt,
+            negative_prompt=request.negative_prompt,
+            width=request.width,
+            height=request.height,
+            steps=request.steps,
+            cfg_scale=request.cfg_scale,
+            seed=request.seed,
+            sampler_name=request.sampler_name,
+            save_to_disk=request.save_to_disk
+        )
+
+        return ImageResponse(
+            status="success",
+            image_path=result.get("image_path"),
+            image_base64=result.get("image_base64") if not request.save_to_disk else None,
+            seed=result.get("seed"),
+            prompt=result.get("prompt"),
+            info=result.get("info")
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur génération image: {str(e)}")
+
+@app.post("/generate-spritesheet", response_model=ImageResponse)
+async def generate_spritesheet(request: SpritesheetRequest):
+    """
+    Génère un spritesheet pour jeu vidéo
+
+    Exemple:
+    ```
+    {
+        "prompt": "knight character walking animation",
+        "frames": 8,
+        "frame_width": 64,
+        "frame_height": 64,
+        "steps": 30
+    }
+    ```
+    """
+    if not SD_ENABLED or not image_gen:
+        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+
+    try:
+        result = await image_gen.generate_spritesheet(
+            prompt=request.prompt,
+            frames=request.frames,
+            frame_width=request.frame_width,
+            frame_height=request.frame_height,
+            negative_prompt=request.negative_prompt,
+            steps=request.steps,
+            cfg_scale=request.cfg_scale,
+            seed=request.seed
+        )
+
+        return ImageResponse(
+            status="success",
+            image_path=result.get("image_path"),
+            seed=result.get("seed"),
+            prompt=result.get("prompt"),
+            info=result.get("info")
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur génération spritesheet: {str(e)}")
+
+@app.post("/generate-game-asset", response_model=ImageResponse)
+async def generate_game_asset(request: GameAssetRequest):
+    """
+    Génère un asset de jeu (icon, item, background, etc.)
+
+    Types disponibles: icon, item, background, character, tileset
+
+    Exemple:
+    ```
+    {
+        "asset_type": "item",
+        "description": "magic sword with blue flames",
+        "size": 512,
+        "steps": 25
+    }
+    ```
+    """
+    if not SD_ENABLED or not image_gen:
+        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+
+    valid_types = ["icon", "item", "background", "character", "tileset"]
+    if request.asset_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type d'asset invalide. Utilisez: {', '.join(valid_types)}"
+        )
+
+    try:
+        result = await image_gen.generate_game_asset(
+            asset_type=request.asset_type,
+            description=request.description,
+            size=request.size,
+            negative_prompt=request.negative_prompt,
+            steps=request.steps,
+            cfg_scale=request.cfg_scale
+        )
+
+        return ImageResponse(
+            status="success",
+            image_path=result.get("image_path"),
+            seed=result.get("seed"),
+            prompt=result.get("prompt"),
+            info=result.get("info")
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur génération asset: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
