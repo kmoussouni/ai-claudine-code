@@ -54,7 +54,32 @@ services:
       - ollama
     restart: unless-stopped
 
+  # Stable Diffusion - Génération d'images
+  stable-diffusion:
+    image: ghcr.io/abdbarre/stable-diffusion-webui:latest
+    container_name: claudine-sd
+    ports:
+      - "7860:7860"
+    volumes:
+      - sd_models:/data/models
+      - sd_outputs:/outputs
+      - ./workspace/generated-images:/workspace/generated-images
+    environment:
+      - CLI_ARGS=--api --listen --port 7860 --allow-code --no-half
+      - COMMANDLINE_ARGS=--api --listen --xformers --enable-insecure-extension-access
+    restart: unless-stopped
+    # Décommentez pour GPU NVIDIA (fortement recommandé)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
 volumes:
   ollama_data:
   agent_config:
   webui_data:
+  sd_models:
+  sd_outputs:
