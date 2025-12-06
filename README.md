@@ -65,6 +65,28 @@ C'est tout ! Les services sont maintenant accessibles :
 - **Ollama API** : http://localhost:11434
 - **Documentation API** : http://localhost:3000/docs
 
+## Mode Client/Serveur
+
+Vous voulez utiliser un **PC puissant comme serveur** et vous connecter depuis un **laptop léger** ?
+
+Claudine supporte le mode **client/serveur distribué** :
+- 🖥️  **Serveur** : PC puissant avec GPU, héberge les gros modèles (32b, 70b)
+- 💻 **Client** : Mac/Laptop léger, juste les outils CLI (~100 MB)
+- 🔐 **Connexion** : Via tunnel SSH sécurisé ou VPN
+
+**→ Voir le guide complet : [REMOTE-SETUP.md](REMOTE-SETUP.md)**
+
+Installation rapide client/serveur :
+```bash
+# Sur le SERVEUR (PC puissant)
+cp .env.server .env  # Configuration serveur
+./scripts/setup.sh
+
+# Sur le CLIENT (Mac/Laptop)
+make client-install  # Installe seulement les CLI
+./scripts/connect-remote.sh start --host monserveur.com
+```
+
 ## Configuration
 
 Copiez `.env.example` vers `.env` et ajustez selon vos besoins :

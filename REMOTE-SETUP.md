@@ -62,11 +62,14 @@ git clone https://github.com/kmoussouni/ai-claudine-code.git
 cd ai-claudine-code
 
 # 2. Configurer pour mode serveur
+# IMPORTANT : Utilisez .env.server comme base pour le serveur
 cp .env.server .env
 
-# 3. Éditer .env
+# 3. Éditer .env pour personnaliser
 nano .env
 ```
+
+**⚠️  Important** : Le fichier `.env.server` contient la configuration optimale pour un serveur puissant (modèle 32b par défaut, sécurité renforcée). Ne pas utiliser le `.env.example` qui est pour usage local avec modèles légers.
 
 **Configuration .env importante** :
 
@@ -172,9 +175,18 @@ docker-compose pull
 git clone https://github.com/kmoussouni/ai-claudine-code.git claudine-client
 cd claudine-client
 
-# Installation client
+# Installation client (automatique via make)
+make client-install
+
+# Ou manuellement
 ./scripts/install-client.sh
 ```
+
+Cette commande installe automatiquement toutes les dépendances Python depuis `requirements-cli.txt` :
+- `httpx` - Client HTTP pour communiquer avec le serveur
+- `textual` - Interface TUI pour l'agent interactif
+- `rich` - Affichage amélioré dans le terminal
+- `pygments` - Coloration syntaxique
 
 #### Option B : Installation Minimale
 
@@ -186,11 +198,15 @@ mkdir claudine-client && cd claudine-client
 curl -O https://raw.githubusercontent.com/kmoussouni/ai-claudine-code/main/scripts/claudine-smart.py
 curl -O https://raw.githubusercontent.com/kmoussouni/ai-claudine-code/main/scripts/agent-interactive.py
 curl -O https://raw.githubusercontent.com/kmoussouni/ai-claudine-code/main/scripts/connect-remote.sh
+curl -O https://raw.githubusercontent.com/kmoussouni/ai-claudine-code/main/requirements-cli.txt
 
 chmod +x *.py connect-remote.sh
 
-# Installer dépendances
-pip3 install httpx textual rich
+# Installer dépendances depuis requirements-cli.txt
+pip3 install --user -r requirements-cli.txt
+
+# Ou installation manuelle minimale
+# pip3 install --user httpx
 ```
 
 ### Configuration Client
@@ -416,6 +432,46 @@ python3 scripts/claudine-smart.py
 ---
 
 ## 🐛 Dépannage
+
+### "ModuleNotFoundError: No module named 'httpx'"
+
+**Problème** : Les dépendances Python du client ne sont pas installées.
+
+**Solution** :
+```bash
+# Sur votre machine cliente
+cd claudine-client
+
+# Option 1 : Via make (recommandé)
+make client-install
+
+# Option 2 : Via script
+./scripts/install-client.sh
+
+# Option 3 : Installation manuelle
+pip3 install --user -r requirements-cli.txt
+```
+
+### Le serveur utilise le mauvais modèle (7b au lieu de 32b)
+
+**Problème** : Le fichier `.env` sur le serveur n'a pas été correctement configuré.
+
+**Solution sur le serveur** :
+```bash
+# Vérifier la configuration actuelle
+cat .env | grep DEFAULT_MODEL
+
+# Si c'est qwen2.5-coder:7b, corriger :
+cp .env.server .env
+# Ou éditer directement :
+nano .env  # Changer DEFAULT_MODEL=qwen2.5-coder:32b
+
+# Redémarrer les services
+make restart
+
+# Vérifier que le modèle est installé
+docker-compose exec ollama ollama list
+```
 
 ### "Connection refused"
 

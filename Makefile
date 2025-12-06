@@ -24,10 +24,13 @@ logs: ## Afficher les logs de tous les services
 status: ## Afficher l'état des services
 	@docker-compose ps
 	@echo ""
-	@python3 scripts/cli.py health
+	@echo "🏥 État de santé du système :"
+	@curl -s http://localhost:3000/health 2>/dev/null | grep -q "api" && echo "   API: ✅ OK" || echo "   API: ❌ Erreur"
+	@curl -s http://localhost:11434/api/tags 2>/dev/null >/dev/null && echo "   Ollama: ✅ OK" || echo "   Ollama: ❌ Erreur"
 
 models: ## Lister les modèles disponibles
-	@python3 scripts/cli.py models
+	@echo "📦 Modèles disponibles :"
+	@docker-compose exec -T ollama ollama list
 
 pull: ## Télécharger un modèle (usage: make pull MODEL=qwen2.5-coder:32b)
 	@./scripts/pull-model.sh $(MODEL)

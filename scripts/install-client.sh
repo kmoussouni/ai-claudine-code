@@ -42,9 +42,14 @@ fi
 echo ""
 echo -e "${BLUE}📚 Installation des dépendances Python...${NC}"
 
-pip3 install --user httpx textual rich pygments
-
-echo -e "${GREEN}✅ Dépendances installées${NC}"
+if [ -f "requirements-cli.txt" ]; then
+    pip3 install --user -r requirements-cli.txt
+    echo -e "${GREEN}✅ Dépendances installées depuis requirements-cli.txt${NC}"
+else
+    echo -e "${YELLOW}⚠️  requirements-cli.txt non trouvé, installation manuelle${NC}"
+    pip3 install --user httpx textual rich pygments
+    echo -e "${GREEN}✅ Dépendances installées${NC}"
+fi
 
 # Copier la configuration client
 if [ -f ".env.client" ]; then
