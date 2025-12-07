@@ -59,7 +59,7 @@ services:
 
   # Stable Diffusion - Génération d'images
   stable-diffusion:
-    image: ghcr.io/abdbarre/stable-diffusion-webui:latest
+    image: ghcr.io/abdbarho/stable-diffusion-webui:6
     container_name: claudine-sd
     ports:
       - "7860:7860"
@@ -68,8 +68,7 @@ services:
       - sd_outputs:/outputs
       - ./workspace/generated-images:/workspace/generated-images
     environment:
-      - CLI_ARGS=--api --listen --port 7860 --allow-code --no-half
-      - COMMANDLINE_ARGS=--api --listen --xformers --enable-insecure-extension-access
+      - CLI_ARGS=--api --listen --port 7860 --no-half
     restart: unless-stopped
     # Décommentez pour GPU NVIDIA (fortement recommandé)
     # deploy:
