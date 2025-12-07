@@ -14,7 +14,7 @@ from typing import Optional, List
 import httpx
 
 # Import services
-from services.image_generator import ImageGenerator
+from services.flux_generator import FluxGenerator
 
 app = FastAPI(
     title="Claudine Code Agent API",
@@ -35,11 +35,11 @@ app.add_middleware(
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen2.5-coder:7b")
 WORKSPACE_DIR = "/workspace"
-SD_ENABLED = os.getenv("SD_ENABLED", "true").lower() == "true"
-SD_API_URL = os.getenv("SD_API_URL", "http://stable-diffusion:7860")
+FLUX_ENABLED = os.getenv("FLUX_ENABLED", "true").lower() == "true"
+FLUX_API_URL = os.getenv("FLUX_API_URL", "http://flux-comfyui:8188")
 
-# Initialiser le service de génération d'images
-image_gen = ImageGenerator(sd_url=SD_API_URL) if SD_ENABLED else None
+# Initialiser le service de génération d'images FLUX
+image_gen = FluxGenerator(comfyui_url=FLUX_API_URL) if FLUX_ENABLED else None
 
 # Modèles de données - Code
 class ChatRequest(BaseModel):
@@ -220,142 +220,114 @@ async def list_workspace_files():
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
-# Endpoints de génération d'images (Stable Diffusion)
+# Endpoints de génération d'images (FLUX via ComfyUI)
 # ============================================================================
 
-@app.get("/sd/health")
-async def sd_health():
-    """Vérifie l'état de santé du service Stable Diffusion"""
-    if not SD_ENABLED or not image_gen:
-        return {"status": "disabled", "message": "Stable Diffusion n'est pas activé"}
+@app.get("/flux/health")
+async def flux_health():
+    """Vérifie l'état de santé du service FLUX/ComfyUI"""
+    if not FLUX_ENABLED or not image_gen:
+        return {"status": "disabled", "message": "FLUX n'est pas activé"}
 
     is_healthy = await image_gen.check_health()
     return {
         "status": "healthy" if is_healthy else "unhealthy",
-        "url": SD_API_URL,
-        "enabled": SD_ENABLED
+        "url": FLUX_API_URL,
+        "enabled": FLUX_ENABLED
     }
 
-@app.get("/sd/models")
-async def sd_models():
-    """Liste les modèles Stable Diffusion disponibles"""
-    if not SD_ENABLED or not image_gen:
-        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
-
-    try:
-        models = await image_gen.list_models()
-        return {"models": models}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/flux/models")
+async def flux_models():
+    """Liste les modèles FLUX disponibles"""
+    return {
+        "models": [
+            {
+                "name": "flux1-schnell",
+                "description": "FLUX.1-schnell - Rapide (4 steps, ~5s)",
+                "recommended_steps": 4,
+                "license": "Apache 2.0"
+            },
+            {
+                "name": "flux1-dev",
+                "description": "FLUX.1-dev - Qualité maximale (20-30 steps, ~30s)",
+                "recommended_steps": 25,
+                "license": "Non-commercial"
+            }
+        ]
+    }
 
 @app.post("/generate-image", response_model=ImageResponse)
 async def generate_image(request: ImageGenerationRequest):
     """
-    Génère une image via Stable Diffusion
+    Génère une image via FLUX (ComfyUI)
 
     Exemple:
     ```
     {
         "prompt": "pixel art character, knight with blue armor",
-        "negative_prompt": "blurry, bad quality",
-        "width": 512,
-        "height": 512,
-        "steps": 20,
-        "cfg_scale": 7.0
+        "width": 1024,
+        "height": 1024,
+        "steps": 4,
+        "model_name": "flux1-schnell"
     }
     ```
+
+    Notes FLUX:
+    - Résolution native: 1024x1024
+    - flux1-schnell: 4 steps (rapide, ~5s)
+    - flux1-dev: 20-30 steps (qualité max, ~30s)
+    - Pas de negative_prompt nécessaire
     """
-    if not SD_ENABLED or not image_gen:
-        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+    if not FLUX_ENABLED or not image_gen:
+        raise HTTPException(status_code=503, detail="FLUX n'est pas activé")
 
     try:
         result = await image_gen.generate_image(
             prompt=request.prompt,
-            negative_prompt=request.negative_prompt,
             width=request.width,
             height=request.height,
             steps=request.steps,
-            cfg_scale=request.cfg_scale,
             seed=request.seed,
-            sampler_name=request.sampler_name,
-            save_to_disk=request.save_to_disk,
             model_name=request.model_name
         )
 
         return ImageResponse(
             status="success",
             image_path=result.get("image_path"),
-            image_base64=result.get("image_base64") if not request.save_to_disk else None,
+            image_base64=None,  # FLUX sauvegarde toujours sur disque
             seed=result.get("seed"),
             prompt=result.get("prompt"),
             info=result.get("info")
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur génération image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur génération FLUX: {str(e)}")
 
 @app.post("/generate-spritesheet", response_model=ImageResponse)
 async def generate_spritesheet(request: SpritesheetRequest):
     """
     Génère un spritesheet pour jeu vidéo
 
-    Exemple:
-    ```
-    {
-        "prompt": "knight character walking animation",
-        "frames": 8,
-        "frame_width": 64,
-        "frame_height": 64,
-        "steps": 30
-    }
-    ```
+    Note: Fonctionnalité temporairement désactivée avec FLUX
+    Utilisez /generate-image avec un prompt optimisé pour sprite sheets
     """
-    if not SD_ENABLED or not image_gen:
-        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
-
-    try:
-        result = await image_gen.generate_spritesheet(
-            prompt=request.prompt,
-            frames=request.frames,
-            frame_width=request.frame_width,
-            frame_height=request.frame_height,
-            negative_prompt=request.negative_prompt,
-            steps=request.steps,
-            cfg_scale=request.cfg_scale,
-            seed=request.seed,
-            model_name=request.model_name
-        )
-
-        return ImageResponse(
-            status="success",
-            image_path=result.get("image_path"),
-            seed=result.get("seed"),
-            prompt=result.get("prompt"),
-            info=result.get("info")
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur génération spritesheet: {str(e)}")
+    raise HTTPException(
+        status_code=501,
+        detail="Spritesheet non supporté avec FLUX. Utilisez /generate-image avec prompt: 'sprite sheet, 8 frames, [votre description]'"
+    )
 
 @app.post("/generate-game-asset", response_model=ImageResponse)
 async def generate_game_asset(request: GameAssetRequest):
     """
     Génère un asset de jeu (icon, item, background, etc.)
 
-    Types disponibles: icon, item, background, character, tileset
-
-    Exemple:
-    ```
-    {
-        "asset_type": "item",
-        "description": "magic sword with blue flames",
-        "size": 512,
-        "steps": 25
-    }
-    ```
+    Note: Fonctionnalité temporairement désactivée avec FLUX
+    Utilisez /generate-image avec un prompt détaillé
     """
-    if not SD_ENABLED or not image_gen:
-        raise HTTPException(status_code=503, detail="Stable Diffusion n'est pas activé")
+    raise HTTPException(
+        status_code=501,
+        detail="Game assets non supportés avec FLUX. Utilisez /generate-image avec prompt détaillé: 'game asset, [type], [description]'"
+    )
 
     valid_types = ["icon", "item", "background", "character", "tileset"]
     if request.asset_type not in valid_types:
