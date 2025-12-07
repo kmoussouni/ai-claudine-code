@@ -50,11 +50,15 @@ RUN pip install --no-cache-dir \
 # Créer les répertoires nécessaires
 RUN mkdir -p /data/models /outputs /workspace/generated-images
 
+# Copier le script de téléchargement des modèles
+COPY download-models.sh /app/download-models.sh
+RUN chmod +x /app/download-models.sh
+
 # Exposer le port
 EXPOSE 7860
 
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1
 
-# Lancer le serveur
-CMD ["python", "launch.py", "--listen", "--port", "7860", "--api", "--no-half", "--skip-torch-cuda-test", "--skip-version-check"]
+# Script de démarrage : télécharger les modèles puis lancer le serveur
+CMD ["/bin/bash", "-c", "/app/download-models.sh && python launch.py --listen --port 7860 --api --no-half --skip-torch-cuda-test --skip-version-check"]

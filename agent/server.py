@@ -67,6 +67,7 @@ class ImageGenerationRequest(BaseModel):
     seed: int = -1
     sampler_name: str = "DPM++ 2M Karras"
     save_to_disk: bool = True
+    model_name: Optional[str] = None  # v1-5-pruned-emaonly ou sd_xl_base_1.0
 
 class SpritesheetRequest(BaseModel):
     prompt: str
@@ -77,6 +78,7 @@ class SpritesheetRequest(BaseModel):
     steps: Optional[int] = None
     cfg_scale: Optional[float] = None
     seed: int = -1
+    model_name: Optional[str] = None  # v1-5-pruned-emaonly ou sd_xl_base_1.0
 
 class GameAssetRequest(BaseModel):
     asset_type: str  # icon, item, background, character, tileset
@@ -85,6 +87,7 @@ class GameAssetRequest(BaseModel):
     negative_prompt: Optional[str] = None
     steps: Optional[int] = None
     cfg_scale: Optional[float] = None
+    model_name: Optional[str] = None  # v1-5-pruned-emaonly ou sd_xl_base_1.0
 
 class ImageResponse(BaseModel):
     status: str
@@ -275,7 +278,8 @@ async def generate_image(request: ImageGenerationRequest):
             cfg_scale=request.cfg_scale,
             seed=request.seed,
             sampler_name=request.sampler_name,
-            save_to_disk=request.save_to_disk
+            save_to_disk=request.save_to_disk,
+            model_name=request.model_name
         )
 
         return ImageResponse(
@@ -318,7 +322,8 @@ async def generate_spritesheet(request: SpritesheetRequest):
             negative_prompt=request.negative_prompt,
             steps=request.steps,
             cfg_scale=request.cfg_scale,
-            seed=request.seed
+            seed=request.seed,
+            model_name=request.model_name
         )
 
         return ImageResponse(
@@ -366,7 +371,8 @@ async def generate_game_asset(request: GameAssetRequest):
             size=request.size,
             negative_prompt=request.negative_prompt,
             steps=request.steps,
-            cfg_scale=request.cfg_scale
+            cfg_scale=request.cfg_scale,
+            model_name=request.model_name
         )
 
         return ImageResponse(

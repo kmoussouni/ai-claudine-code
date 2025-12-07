@@ -59,7 +59,8 @@ class ImageGenerator:
         cfg_scale: Optional[float] = None,
         seed: int = -1,
         sampler_name: str = "DPM++ 2M Karras",
-        save_to_disk: bool = True
+        save_to_disk: bool = True,
+        model_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Génère une image via Stable Diffusion API
@@ -74,6 +75,7 @@ class ImageGenerator:
             seed: Seed aléatoire (-1 = aléatoire)
             sampler_name: Algorithme de sampling
             save_to_disk: Sauvegarder l'image dans workspace
+            model_name: Nom du modèle SD à utiliser (v1-5-pruned-emaonly ou sd_xl_base_1.0)
 
         Returns:
             Dict avec image_path, image_base64, seed, info
@@ -89,6 +91,12 @@ class ImageGenerator:
             "seed": seed,
             "sampler_name": sampler_name,
         }
+
+        # Ajouter le modèle si spécifié
+        if model_name:
+            payload["override_settings"] = {
+                "sd_model_checkpoint": model_name
+            }
 
         try:
             response = await self.client.post(
