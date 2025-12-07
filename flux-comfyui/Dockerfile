@@ -11,17 +11,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Cloner ComfyUI
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git . && \
-    pip install --no-cache-dir -r requirements.txt
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git .
 
-# Installer les dépendances supplémentaires
+# Installer PyTorch CPU (léger)
 RUN pip install --no-cache-dir \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu \
-    aiohttp \
-    einops \
-    transformers \
-    safetensors \
-    accelerate
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Installer les requirements de ComfyUI
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Script de téléchargement des modèles FLUX
 COPY download-flux-models.sh /app/download-flux-models.sh
