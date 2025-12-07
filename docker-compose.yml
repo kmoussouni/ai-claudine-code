@@ -59,7 +59,9 @@ services:
 
   # Stable Diffusion - Génération d'images
   stable-diffusion:
-    image: ghcr.io/abdbarho/stable-diffusion-webui:6
+    build:
+      context: ./stable-diffusion
+      dockerfile: Dockerfile
     container_name: claudine-sd
     ports:
       - "7860:7860"
@@ -68,7 +70,7 @@ services:
       - sd_outputs:/outputs
       - ./workspace/generated-images:/workspace/generated-images
     environment:
-      - CLI_ARGS=--api --listen --port 7860 --no-half
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     # Décommentez pour GPU NVIDIA (fortement recommandé)
     # deploy:
