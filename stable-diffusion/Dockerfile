@@ -15,9 +15,12 @@ WORKDIR /app
 # Cloner AUTOMATIC1111 Stable Diffusion WebUI
 RUN git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git .
 
-# Installer les dépendances Python de base
+# Installer PyTorch CPU d'abord
 RUN pip install --no-cache-dir \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Puis installer les autres dépendances depuis PyPI
+RUN pip install --no-cache-dir \
     transformers \
     diffusers \
     accelerate \
@@ -25,8 +28,6 @@ RUN pip install --no-cache-dir \
     omegaconf \
     pytorch-lightning \
     scikit-image \
-    fonts \
-    font-roboto \
     timm \
     piexif \
     einops \
