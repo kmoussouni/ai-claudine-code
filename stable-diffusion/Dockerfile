@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     libgl1 \
     libglib2.0-0 \
+    build-essential \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Créer le répertoire de travail
