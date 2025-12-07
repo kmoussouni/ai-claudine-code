@@ -57,22 +57,22 @@ services:
       - code-agent
     restart: unless-stopped
 
-  # Stable Diffusion - Génération d'images
-  stable-diffusion:
+  # ComfyUI + FLUX - Génération d'images (meilleure qualité que SD)
+  flux-comfyui:
     build:
-      context: ./stable-diffusion
+      context: ./flux-comfyui
       dockerfile: Dockerfile
-    container_name: claudine-sd
+    container_name: claudine-flux
     ports:
-      - "7860:7860"
+      - "8188:8188"
     volumes:
-      - sd_models:/data/models
-      - sd_outputs:/outputs
+      - flux_models:/app/models
+      - flux_outputs:/app/output
       - ./workspace/generated-images:/workspace/generated-images
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
-    # Décommentez pour GPU NVIDIA (fortement recommandé)
+    # Décommentez pour GPU NVIDIA (fortement recommandé pour FLUX)
     # deploy:
     #   resources:
     #     reservations:
@@ -85,5 +85,5 @@ volumes:
   ollama_data:
   agent_config:
   webui_data:
-  sd_models:
-  sd_outputs:
+  flux_models:
+  flux_outputs:
