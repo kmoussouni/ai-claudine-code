@@ -33,5 +33,9 @@ RUN mkdir -p /app/models/checkpoints \
 
 EXPOSE 8188
 
-# Démarrage : télécharger les modèles puis lancer ComfyUI
-CMD ["/bin/bash", "-c", "/app/download-flux-models.sh && python main.py --listen 0.0.0.0 --port 8188"]
+# Variables d'environnement pour forcer CPU
+ENV CUDA_VISIBLE_DEVICES=""
+ENV FORCE_CPU=1
+
+# Démarrage : télécharger les modèles puis lancer ComfyUI en mode CPU
+CMD ["/bin/bash", "-c", "/app/download-flux-models.sh && python main.py --listen 0.0.0.0 --port 8188 --cpu"]
