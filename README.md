@@ -206,7 +206,7 @@ Interface terminal avec vue splitée et boutons cliquables.
 python3 scripts/agent-tui.py
 ```
 
-**📖 Guide complet des 3 agents : [CLI-AGENTS.md](CLI-AGENTS.md)**
+**📖 Guide complet des 3 agents : [CLI-AGENTS.md](docs/CLI-AGENTS.md)**
 
 ### 4. API REST
 
@@ -403,21 +403,36 @@ python3 scripts/cli.py health
 
 ```
 claudine/
-├── docker-compose.yml      # Orchestration des services
-├── .env.example            # Configuration exemple
-├── README.md               # Cette documentation
 ├── agent/                  # Service agent de code
 │   ├── Dockerfile
 │   ├── server.py           # API FastAPI
 │   └── config/             # Configuration de l'agent
-├── workspace/              # Espace de travail partagé
-├── scripts/
+├── docs/                   # Documentation détaillée
+│   ├── AGENT-SMART.md      # Guide agent intelligent
+│   ├── CLI-AGENTS.md       # Guide des 3 agents CLI
+│   ├── CONTRIBUTING.md     # Guide de contribution
+│   ├── EXAMPLES.md         # Exemples d'utilisation
+│   ├── INTEGRATION.md      # Guide d'intégration
+│   ├── QUICKSTART.md       # Démarrage rapide
+│   ├── REMOTE-SETUP.md     # Configuration client/serveur
+│   └── TEST-AGENTS.md      # Guide de test des agents
+├── scripts/                # Scripts utilitaires
 │   ├── setup.sh            # Installation initiale
 │   ├── start.sh            # Démarrer les services
 │   ├── stop.sh             # Arrêter les services
 │   ├── pull-model.sh       # Télécharger des modèles
-│   └── cli.py              # Client CLI Python
-└── .gitignore
+│   ├── cli.py              # Client CLI Python
+│   ├── agent-interactive.py # Agent interactif
+│   ├── agent-tui.py        # Agent TUI
+│   ├── agent-aider.sh      # Agent Aider
+│   └── claudine-smart.py   # Agent intelligent
+├── workspace/              # Espace de travail partagé
+├── docker-compose.yml      # Orchestration des services
+├── Makefile                # Commandes make
+├── .env.example            # Configuration exemple
+├── ROADMAP.md              # Feuille de route du projet
+├── LICENSE                 # Licence MIT
+└── README.md               # Cette documentation
 ```
 
 ## Technologies Utilisées
