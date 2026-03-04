@@ -5,6 +5,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     git \
     wget \
+    curl \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +26,7 @@ COPY download-flux-models.sh /app/download-flux-models.sh
 RUN chmod +x /app/download-flux-models.sh
 
 # Créer les dossiers nécessaires
-RUN mkdir -p /app/models/checkpoints \
+RUN mkdir -p /app/models/unet \
              /app/models/vae \
              /app/models/clip \
              /app/output \

@@ -51,9 +51,10 @@ class FluxGenerator:
         if seed == -1:
             seed = int(uuid.uuid4().int % (2**32))
 
-        # Workflow ComfyUI simplifié pour FLUX
+        # Workflow ComfyUI correct pour FLUX (architecture unet séparé)
+        # FLUX utilise : UNETLoader + DualCLIPLoader (clip_l + t5xxl) + VAELoader
         workflow = {
-            "1": {  # CLIP Text Encode (prompt)
+            "1": {  # CLIP Text Encode (prompt positif)
                 "class_type": "CLIPTextEncode",
                 "inputs": {
                     "text": prompt,
@@ -68,12 +69,12 @@ class FluxGenerator:
                     "batch_size": 1
                 }
             },
-            "3": {  # KSampler (génération)
+            "3": {  # KSampler
                 "class_type": "KSampler",
                 "inputs": {
                     "seed": seed,
                     "steps": steps,
-                    "cfg": 1.0,  # FLUX utilise CFG=1
+                    "cfg": 1.0,  # FLUX ignore CFG, toujours 1.0
                     "sampler_name": "euler",
                     "scheduler": "simple",
                     "denoise": 1.0,
@@ -104,16 +105,19 @@ class FluxGenerator:
                     "images": ["8", 0]
                 }
             },
-            "10": {  # Load Checkpoint
-                "class_type": "CheckpointLoaderSimple",
+            "10": {  # UNETLoader — FLUX est un unet seul, pas un checkpoint complet
+                "class_type": "UNETLoader",
                 "inputs": {
-                    "ckpt_name": f"{model}.safetensors"
+                    "unet_name": f"{model}.safetensors",
+                    "weight_dtype": "default"
                 }
             },
-            "11": {  # CLIP from checkpoint
-                "class_type": "CLIPLoader",
+            "11": {  # DualCLIPLoader — FLUX nécessite CLIP-L + T5-XXL simultanément
+                "class_type": "DualCLIPLoader",
                 "inputs": {
-                    "clip_name": "clip_l.safetensors"
+                    "clip_name1": "t5xxl_fp16.safetensors",
+                    "clip_name2": "clip_l.safetensors",
+                    "type": "flux"
                 }
             },
             "12": {  # VAE Loader

@@ -22,20 +22,52 @@ Transformer Claudine en une plateforme multimodale complète avec deux agents sp
 
 ---
 
-## Phase 1 : Génération d'Images avec FLUX (EN COURS)
+## Phase 1 : Génération d'Images avec FLUX (COMPLETEE)
 
-**Branche** : `feature/image-generation`
+**Branche** : `feature/image-generation` → merge vers `dev` pending
 **Priorité** : HAUTE
+**Durée estimée** : Complétée
 
 ### Objectifs
-- Intégrer FLUX (via ComfyUI) pour génération d'images de haute qualité
-- Permettre création de spritesheets pour jeux
+- ~~Intégrer Stable Diffusion pour génération d'images~~
+- Intégrer FLUX pour génération d'images haute qualité
+- Permettre création de spritesheets pour jeux (via prompts adaptés)
 - Support assets de jeu (items, personnages, environnements)
 
+### Décision Technologique : FLUX vs Stable Diffusion
+
+Stable Diffusion / Automatic1111 a été **remplacé par FLUX/ComfyUI** pour les raisons suivantes :
+- Qualité d'image supérieure (FLUX.1-schnell et FLUX.1-dev)
+- Architecture moderne, meilleure cohérence des prompts
+- ComfyUI expose une API workflow JSON flexible
+- FLUX.1-schnell : license Apache 2.0, 4 steps (~5s GPU / plus lent CPU)
+- Fonctionnement en **mode CPU** possible (pas de GPU NVIDIA requis)
+
 ### Technologies
-- **FLUX.1** (schnell + dev) via ComfyUI (port 8188)
-- API REST pour intégration (endpoint unifié `/generate-image`)
+- **FLUX/ComfyUI** (port 8188) — remplace Stable Diffusion/Automatic1111
+- API REST via `agent/server.py` (FastAPI)
+- Mode CPU forcé (GPU NVIDIA commenté dans docker-compose)
 - Résolution native 1024x1024
+
+### Livrables
+- [x] Service FLUX/ComfyUI dans docker-compose
+- [x] API endpoint `/generate-image` opérationnel
+- [x] `agent/services/flux_generator.py` — client ComfyUI
+- [x] Download validation + CPU mode forcé
+- [x] Smart agent `claudine-smart.py` avec STACK_PRESETS (php, unity, js, react, bash, python)
+- [x] Smart agent : `:commit`, `:review`, `:status`, `:stack` commands
+
+### Note sur les Endpoints 501
+
+`/generate-spritesheet` et `/generate-game-asset` retournent **501 intentionnellement**.
+Utiliser `/generate-image` avec un prompt adapté :
+```json
+// Spritesheet
+{ "prompt": "sprite sheet, 8 frames walking animation, knight, pixel art", "width": 1024, "height": 512, "steps": 4 }
+
+// Game asset
+{ "prompt": "game asset, icon, medieval sword, transparent background, pixel art", "width": 512, "height": 512 }
+```
 
 ### Avancement
 
@@ -147,6 +179,8 @@ User request → LLM (génère contenu) → Python libs (créent fichiers)
 
 ## Phase 4 : Spécialisation Agent CLI
 
+> **Note :** Partiellement réalisé en Phase 1 via les `STACK_PRESETS` de `claudine-smart.py` (php, unity, js, react, bash, python). Les prompts spécialisés par langage et la sélection de modèle par stack sont déjà fonctionnels.
+
 **Branche** : `feature/cli-specialization` (à créer)
 **Priorité** : MOYENNE
 
@@ -211,7 +245,7 @@ User request → LLM (génère contenu) → Python libs (créent fichiers)
 Phase 0 : Client/Serveur              [COMPLÉTÉE]
              │
              ↓
-Phase 1 : Images (FLUX/ComfyUI)       [EN COURS - 90%]
+Phase 1 : Images (FLUX/ComfyUI)       [COMPLETEE]
              │
              ↓
 Phase 2 : Documents (docx/xlsx/pdf)   [À VENIR]
@@ -223,6 +257,9 @@ Phase 4 : CLI Spécialisé              [À VENIR]
 Phase 3 : Vidéos (AnimateDiff)        [FUTUR - optionnel]
 ```
 
+**Durée totale estimée** : 2-3 semaines restantes (Phase 1 complétée, Phase 4 partiellement faite)
+
+
 ---
 
 ## Prérequis Serveur
@@ -230,7 +267,7 @@ Phase 3 : Vidéos (AnimateDiff)        [FUTUR - optionnel]
 ### Minimum (Phases 1-2-4)
 - **CPU** : 8+ cores
 - **RAM** : 32 GB
-- **GPU** : NVIDIA RTX 3060 (12 GB VRAM)
+- **GPU** : NVIDIA RTX 3060 (12 GB VRAM) — *optionnel, FLUX fonctionne en mode CPU (plus lent)*
 - **Stockage** : 100 GB SSD
 
 ### Recommandé (Toutes phases)
@@ -251,4 +288,4 @@ Phase 3 : Vidéos (AnimateDiff)        [FUTUR - optionnel]
 
 ---
 
-**Prochaine action** : Finaliser les tests Phase 1 puis commencer Phase 2
+**Prochaine action** : Merger `feature/image-generation` dans `dev`, puis commencer Phase 2

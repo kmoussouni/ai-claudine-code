@@ -1,111 +1,101 @@
 #!/bin/bash
 # Téléchargement des modèles FLUX
+# Nécessite un token HuggingFace (gratuit) :
+#   1. Créer un compte sur https://huggingface.co
+#   2. Accepter la licence FLUX : https://huggingface.co/black-forest-labs/FLUX.1-schnell
+#   3. Générer un token : https://huggingface.co/settings/tokens
+#   4. Passer HF_TOKEN en variable d'environnement
+
+set -euo pipefail
 
 MODELS_DIR="/app/models"
 
 echo "=== Téléchargement des modèles FLUX ==="
 
-# Fonction pour vérifier la taille d'un fichier
-check_file_size() {
-    local file=$1
-    local min_size=$2
+if [ -z "${HF_TOKEN:-}" ]; then
+    echo "⚠️  HF_TOKEN non défini."
+    echo "   Obtenez un token sur https://huggingface.co/settings/tokens"
+    echo "   et définissez HF_TOKEN dans votre .env"
+    echo "   Tentative sans token (peut échouer pour les modèles avec licence)..."
+    AUTH_HEADER=""
+else
+    echo "✅ HF_TOKEN détecté"
+    AUTH_HEADER="Authorization: Bearer ${HF_TOKEN}"
+fi
 
-    if [ ! -f "$file" ]; then
-        return 1
+# Wrapper de téléchargement avec curl
+hf_download() {
+    local url="$1"
+    local output="$2"
+    local min_size="${3:-0}"
+
+    # Vérifier si le fichier existe déjà et est valide
+    if [ -f "$output" ]; then
+        local size
+        size=$(stat -c%s "$output" 2>/dev/null || stat -f%z "$output" 2>/dev/null || echo 0)
+        if [ "$size" -ge "$min_size" ]; then
+            echo "✅ $(basename "$output") déjà présent ($(numfmt --to=iec-i --suffix=B "$size"))"
+            return 0
+        else
+            echo "⚠️  $(basename "$output") incomplet ($size bytes), re-téléchargement..."
+            rm -f "$output"
+        fi
     fi
 
-    local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo 0)
-    if [ "$size" -lt "$min_size" ]; then
-        echo "⚠️  Fichier incomplet ($size bytes < $min_size bytes), suppression..."
-        rm -f "$file"
-        return 1
+    echo "📥 Téléchargement $(basename "$output")..."
+    if [ -n "${AUTH_HEADER:-}" ]; then
+        curl -L --progress-bar \
+            --header "$AUTH_HEADER" \
+            --retry 3 --retry-delay 5 \
+            -o "$output" "$url"
+    else
+        curl -L --progress-bar \
+            --retry 3 --retry-delay 5 \
+            -o "$output" "$url"
     fi
-    return 0
+
+    # Vérifier après téléchargement
+    local final_size
+    final_size=$(stat -c%s "$output" 2>/dev/null || stat -f%z "$output" 2>/dev/null || echo 0)
+    if [ "$final_size" -ge "$min_size" ]; then
+        echo "✅ $(basename "$output") téléchargé ($(numfmt --to=iec-i --suffix=B "$final_size"))"
+    else
+        echo "❌ Échec : $(basename "$output") trop petit ($final_size bytes < $min_size)"
+        rm -f "$output"
+        exit 1
+    fi
 }
 
-# FLUX.1-schnell (rapide, 4 steps, ~12GB = 12000000000 bytes)
-MIN_SIZE_SCHNELL=11000000000  # 11GB minimum
-if ! check_file_size "$MODELS_DIR/checkpoints/flux1-schnell.safetensors" $MIN_SIZE_SCHNELL; then
-    echo "📥 Téléchargement FLUX.1-schnell (12GB, rapide)..."
-    wget --continue --show-progress \
-        "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/flux1-schnell.safetensors" \
-        -O "$MODELS_DIR/checkpoints/flux1-schnell.safetensors"
+# FLUX.1-schnell — unet uniquement (~12GB)
+hf_download \
+    "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/flux1-schnell.safetensors" \
+    "$MODELS_DIR/unet/flux1-schnell.safetensors" \
+    11000000000
 
-    if check_file_size "$MODELS_DIR/checkpoints/flux1-schnell.safetensors" $MIN_SIZE_SCHNELL; then
-        echo "✅ FLUX.1-schnell téléchargé"
-    else
-        echo "❌ Échec téléchargement FLUX.1-schnell"
-        exit 1
-    fi
-else
-    echo "✅ FLUX.1-schnell déjà présent"
-fi
+# VAE (~335MB)
+hf_download \
+    "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors" \
+    "$MODELS_DIR/vae/ae.safetensors" \
+    300000000
 
-# FLUX.1-dev (qualité maximale, ~12GB)
-# Décommenter si vous voulez la meilleure qualité (nécessite licence)
-# if [ ! -f "$MODELS_DIR/checkpoints/flux1-dev.safetensors" ]; then
-#     echo "📥 Téléchargement FLUX.1-dev (12GB, haute qualité)..."
-#     wget -q --show-progress \
-#         "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors" \
-#         -O "$MODELS_DIR/checkpoints/flux1-dev.safetensors"
-#     echo "✅ FLUX.1-dev téléchargé"
-# fi
+# CLIP-L (~235MB)
+hf_download \
+    "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors" \
+    "$MODELS_DIR/clip/clip_l.safetensors" \
+    200000000
 
-# VAE (nécessaire pour FLUX, ~335MB)
-MIN_SIZE_VAE=300000000  # 300MB minimum
-if ! check_file_size "$MODELS_DIR/vae/ae.safetensors" $MIN_SIZE_VAE; then
-    echo "📥 Téléchargement VAE FLUX..."
-    wget --continue --show-progress \
-        "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors" \
-        -O "$MODELS_DIR/vae/ae.safetensors"
-
-    if check_file_size "$MODELS_DIR/vae/ae.safetensors" $MIN_SIZE_VAE; then
-        echo "✅ VAE téléchargé"
-    else
-        echo "❌ Échec téléchargement VAE"
-        exit 1
-    fi
-else
-    echo "✅ VAE déjà présent"
-fi
-
-# CLIP L (~1GB)
-MIN_SIZE_CLIP=900000000  # 900MB minimum
-if ! check_file_size "$MODELS_DIR/clip/clip_l.safetensors" $MIN_SIZE_CLIP; then
-    echo "📥 Téléchargement CLIP L..."
-    wget --continue --show-progress \
-        "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors" \
-        -O "$MODELS_DIR/clip/clip_l.safetensors"
-
-    if check_file_size "$MODELS_DIR/clip/clip_l.safetensors" $MIN_SIZE_CLIP; then
-        echo "✅ CLIP L téléchargé"
-    else
-        echo "❌ Échec téléchargement CLIP L"
-        exit 1
-    fi
-else
-    echo "✅ CLIP L déjà présent"
-fi
-
-# T5-XXL (~9GB)
-MIN_SIZE_T5XXL=8500000000  # 8.5GB minimum
-if ! check_file_size "$MODELS_DIR/clip/t5xxl_fp16.safetensors" $MIN_SIZE_T5XXL; then
-    echo "📥 Téléchargement T5-XXL (large, ~9GB)..."
-    wget --continue --show-progress \
-        "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors" \
-        -O "$MODELS_DIR/clip/t5xxl_fp16.safetensors"
-
-    if check_file_size "$MODELS_DIR/clip/t5xxl_fp16.safetensors" $MIN_SIZE_T5XXL; then
-        echo "✅ T5-XXL téléchargé"
-    else
-        echo "❌ Échec téléchargement T5-XXL"
-        exit 1
-    fi
-else
-    echo "✅ T5-XXL déjà présent"
-fi
+# T5-XXL fp16 (~9GB) — encodeur texte principal de FLUX
+hf_download \
+    "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors" \
+    "$MODELS_DIR/clip/t5xxl_fp16.safetensors" \
+    8500000000
 
 echo ""
 echo "=== Modèles FLUX prêts ==="
-ls -lh "$MODELS_DIR/checkpoints"/*.safetensors 2>/dev/null || echo "Aucun checkpoint trouvé"
+echo "Unet:"
+ls -lh "$MODELS_DIR/unet/"*.safetensors 2>/dev/null || echo "  (aucun)"
+echo "VAE:"
+ls -lh "$MODELS_DIR/vae/"*.safetensors 2>/dev/null || echo "  (aucun)"
+echo "CLIP:"
+ls -lh "$MODELS_DIR/clip/"*.safetensors 2>/dev/null || echo "  (aucun)"
 echo ""

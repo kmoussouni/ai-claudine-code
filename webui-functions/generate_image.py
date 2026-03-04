@@ -1,104 +1,98 @@
 """
-title: Generate Image with Stable Diffusion
+title: Generate Image with FLUX
 author: Claudine
-version: 1.0.0
-description: Generate images using Stable Diffusion for game assets, illustrations, and more
+version: 2.0.0
+description: Generate images using FLUX via ComfyUI. Ask the AI to generate an image and it will call this tool automatically.
 """
 
 import requests
-import json
 from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class Tools:
-    """Open WebUI Function for image generation"""
+    """Open WebUI Tool for image generation via FLUX/ComfyUI"""
 
     def __init__(self):
         self.valves = self.Valves()
 
     class Valves(BaseModel):
-        """Configuration for the function"""
         AGENT_API_URL: str = Field(
             default="http://code-agent:3000",
             description="URL of the Claudine Agent API"
         )
-        DEFAULT_STEPS: int = Field(
-            default=20,
-            description="Default number of diffusion steps"
-        )
-        DEFAULT_CFG_SCALE: float = Field(
-            default=7.0,
-            description="Default CFG scale"
-        )
+        DEFAULT_WIDTH: int = Field(default=1024, description="Default image width")
+        DEFAULT_HEIGHT: int = Field(default=1024, description="Default image height")
+        DEFAULT_STEPS: int = Field(default=4, description="Steps (4=schnell rapide, 20-30=dev qualité)")
+        DEFAULT_MODEL: str = Field(default="flux1-schnell", description="flux1-schnell ou flux1-dev")
 
-    async def generate_image(
+    def generate_image(
         self,
         prompt: str,
-        width: int = 512,
-        height: int = 512,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
         steps: Optional[int] = None,
-        negative_prompt: Optional[str] = None,
+        model: Optional[str] = None,
         __user__: dict = {},
     ) -> str:
         """
-        Generate an image using Stable Diffusion.
+        Generate an image using FLUX AI model.
+        Call this tool whenever the user asks to generate, create, or draw an image.
 
         Args:
-            prompt: Description of the image to generate
-            width: Image width (default: 512)
-            height: Image height (default: 512)
-            steps: Number of diffusion steps (default: 20)
-            negative_prompt: What to avoid in the image
+            prompt: Detailed description of the image to generate (English works best)
+            width: Image width in pixels (default: 1024, FLUX native resolution)
+            height: Image height in pixels (default: 1024)
+            steps: Diffusion steps — 4 for speed (schnell), 20-30 for quality (dev)
+            model: "flux1-schnell" (fast, Apache 2.0) or "flux1-dev" (quality, non-commercial)
 
         Examples:
-            - generate_image("pixel art knight character")
-            - generate_image("magic sword with blue flames", width=256, height=256)
-            - generate_image("forest background", negative_prompt="blurry, low quality")
+            generate_image("a cute cat sitting on a window sill, golden hour lighting")
+            generate_image("pixel art knight character, blue armor", width=512, height=512)
+            generate_image("fantasy landscape, mountains and lake", width=1024, height=576)
         """
+        payload = {
+            "prompt": prompt,
+            "width": width or self.valves.DEFAULT_WIDTH,
+            "height": height or self.valves.DEFAULT_HEIGHT,
+            "steps": steps or self.valves.DEFAULT_STEPS,
+            "model_name": model or self.valves.DEFAULT_MODEL,
+            "save_to_disk": True,
+        }
 
         try:
-            # Préparer la requête
-            payload = {
-                "prompt": prompt,
-                "width": width,
-                "height": height,
-                "steps": steps or self.valves.DEFAULT_STEPS,
-                "cfg_scale": self.valves.DEFAULT_CFG_SCALE,
-                "save_to_disk": True
-            }
-
-            if negative_prompt:
-                payload["negative_prompt"] = negative_prompt
-
-            # Appeler l'API Agent
             response = requests.post(
                 f"{self.valves.AGENT_API_URL}/generate-image",
                 json=payload,
-                timeout=300  # 5 minutes max
+                timeout=600,
             )
 
+            if response.status_code == 503:
+                return "⚠️ FLUX n'est pas disponible. Vérifiez que le service est démarré (`make start`) et que les modèles sont téléchargés."
+
             if response.status_code != 200:
-                return f"❌ Error: {response.status_code} - {response.text}"
+                return f"❌ Erreur {response.status_code} : {response.text[:300]}"
 
             result = response.json()
+            image_path = result.get("image_path", "N/A")
 
-            # Formater la réponse
-            output = f"""
-🎨 **Image Generated Successfully!**
+            # Construire le chemin relatif pour l'affichage WebUI
+            # Les images sont montées dans /app/backend/static/generated-images/
+            filename = image_path.split("/")[-1] if image_path else "unknown"
+            webui_url = f"/generated-images/{filename}"
 
-📝 **Prompt:** {result.get('prompt', prompt)}
-📏 **Size:** {width}x{height}px
-🎲 **Seed:** {result.get('seed', 'N/A')}
-💾 **Saved to:** `{result.get('image_path', 'N/A')}`
-
-The image has been generated and saved in the workspace.
-To view it, check the `generated-images` folder.
-"""
-
-            return output.strip()
+            return (
+                f"🎨 **Image générée avec succès !**\n\n"
+                f"**Prompt :** {result.get('prompt', prompt)}\n"
+                f"**Taille :** {payload['width']}×{payload['height']}px\n"
+                f"**Modèle :** {payload['model_name']} ({payload['steps']} steps)\n"
+                f"**Seed :** {result.get('seed', 'N/A')}\n\n"
+                f"![Image générée]({webui_url})"
+            )
 
         except requests.Timeout:
-            return "⏱️ Timeout: Image generation took too long (>5 minutes). Try with fewer steps or smaller size."
-        except Exception as e:
-            return f"❌ Error generating image: {str(e)}"
+            return "⏱️ Timeout : la génération a pris trop longtemps (>10 min). Essayez avec moins de steps ou une résolution plus petite."
+        except requests.ConnectionError:
+            return "❌ Impossible de joindre l'agent API. Vérifiez que les services Docker sont démarrés (`make start`)."
+        except Exception as exc:
+            return f"❌ Erreur : {exc}"

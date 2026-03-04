@@ -71,6 +71,10 @@ services:
       - ./workspace/generated-images:/workspace/generated-images
     environment:
       - PYTHONUNBUFFERED=1
+      # Token HuggingFace requis pour télécharger FLUX.1-schnell
+      # Obtenir sur https://huggingface.co/settings/tokens
+      # puis accepter la licence : https://huggingface.co/black-forest-labs/FLUX.1-schnell
+      - HF_TOKEN=${HF_TOKEN:-}
     restart: unless-stopped
     # Décommentez pour GPU NVIDIA (fortement recommandé pour FLUX)
     # deploy:
