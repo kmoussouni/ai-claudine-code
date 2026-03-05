@@ -47,14 +47,47 @@ services:
       - "8080:8080"
     volumes:
       - webui_data:/app/backend/data
+      - ./webui-functions:/app/backend/data/functions
+      - ./workspace/generated-images:/app/backend/static/generated-images
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - WEBUI_SECRET_KEY=changeme_secret_key_here
     depends_on:
       - ollama
+      - code-agent
     restart: unless-stopped
+
+  # ComfyUI + FLUX - Génération d'images (meilleure qualité que SD)
+  flux-comfyui:
+    build:
+      context: ./flux-comfyui
+      dockerfile: Dockerfile
+    container_name: claudine-flux
+    ports:
+      - "8188:8188"
+    volumes:
+      - flux_models:/app/models
+      - flux_outputs:/app/output
+      - ./workspace/generated-images:/workspace/generated-images
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Token HuggingFace requis pour télécharger FLUX.1-schnell
+      # Obtenir sur https://huggingface.co/settings/tokens
+      # puis accepter la licence : https://huggingface.co/black-forest-labs/FLUX.1-schnell
+      - HF_TOKEN=${HF_TOKEN:-}
+    restart: unless-stopped
+    # Décommentez pour GPU NVIDIA (fortement recommandé pour FLUX)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   ollama_data:
   agent_config:
   webui_data:
+  flux_models:
+  flux_outputs:
