@@ -70,3 +70,21 @@ remote-disconnect: ## Déconnecter du serveur distant
 
 remote-status: ## Status de la connexion distante
 	@./scripts/connect-remote.sh status
+
+# Commandes Stable Diffusion (Génération d'images)
+sd-setup: ## Setup Stable Diffusion et vérifier les modèles
+	@./scripts/setup-stable-diffusion.sh
+
+sd-download: ## Télécharger des modèles Stable Diffusion
+	@./scripts/download-sd-models.sh
+
+sd-logs: ## Voir les logs Stable Diffusion
+	@docker-compose logs -f stable-diffusion
+
+sd-models: ## Lister les modèles SD installés
+	@echo "📦 Modèles Stable Diffusion installés :"
+	@curl -s http://localhost:7860/sdapi/v1/sd-models 2>/dev/null | python3 -c "import sys, json; models = json.load(sys.stdin); [print(f\"   - {m['model_name']}\") for m in models]" || echo "   ⚠️  Service SD non accessible (est-il démarré ?)"
+
+sd-ui: ## Ouvrir l'interface Stable Diffusion (port 7860)
+	@echo "🎨 Interface Stable Diffusion : http://localhost:7860"
+	@command -v open >/dev/null 2>&1 && open http://localhost:7860 || xdg-open http://localhost:7860 2>/dev/null || echo "   Ouvrez http://localhost:7860 dans votre navigateur"
